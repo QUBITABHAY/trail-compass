@@ -29,8 +29,14 @@ export default function CompassScreen({ navigation }) {
 
     const askForPermission = async () => {
       // TODO a) Ask for location permission
-
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status != "granted") {
+        setErrorMsg("Permission Denied");
+        return;
+      }
       // TODO b) Get One-time position and save the coordinates
+      let location = await Location.getCurrentPositionAsync({});
+      setCoords(location);
 
       //* (GIVEN): Heading watcher (0..360 degrees)
       headingSub = await Location.watchHeadingAsync(({ trueHeading }) => {
@@ -68,7 +74,7 @@ export default function CompassScreen({ navigation }) {
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     loop.start();
     return () => loop.stop();
@@ -97,6 +103,17 @@ export default function CompassScreen({ navigation }) {
       return;
     }
     // TODO(2): push new pin {id, lat, lon, heading, ts} to state and savePins(next)
+    const pin = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      lat: coords.coords.latitude,
+      lon: coords.coords.longitude,
+      heading: heading,
+      ts: nowISO(),
+    };
+
+    const newPins = [pin, ...pins];
+    setPins(newPins);
+    await savePins(newPins);
     setSnack("TODO: save pin");
   };
 
@@ -106,6 +123,9 @@ export default function CompassScreen({ navigation }) {
       return;
     }
     // TODO(3): Clipboard.setStringAsync("lat, lon") then snackbar
+    let lat = coords.latitude;
+    let lon = coords.longitude;
+    await Clipboard.setStringAsync(`${lat}, ${lon}`);
   };
 
   const shareCoords = async () => {
@@ -114,6 +134,9 @@ export default function CompassScreen({ navigation }) {
       return;
     }
     // TODO(4): Share.share with message including coords + heading + cardinal
+    await Share.share({
+      message: `I am here: ${coords.latitude}, ${coords.longitude} (${toCardinal(heading)}°)`,
+    });
   };
 
   // Make DARK end point opposite heading: add 180°
